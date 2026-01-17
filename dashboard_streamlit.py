@@ -15,8 +15,8 @@ IS_STREAMLIT_CLOUD = os.getenv('STREAMLIT_CLOUD', 'False').lower() == 'true'
 def get_db_path():
     """Base de datos local o remota según configuración"""
     if IS_STREAMLIT_CLOUD:
-        # En Streamlit Cloud, usamos archivos locales
-        return os.path.join(os.path.dirname(__file__), "txt_data.db")
+        # En Streamlit Cloud, usar la base de datos del repositorio
+        return "txt_data.db"
     else:
         return os.path.join(os.path.dirname(__file__), "txt_data.db")
 
@@ -123,6 +123,13 @@ def main():
             display: inline-block;
             margin-bottom: 1rem;
         }
+        .sample-data-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
     </style>
     """, unsafe_allow_html=True)
     
@@ -135,13 +142,14 @@ def main():
     st.markdown("---")
     
     db_path = get_db_path()
-    if not os.path.exists(db_path):
-        st.error(f"❌ No se encontró la BD: {db_path}")
-        return
     
-    conn = sqlite3.connect(db_path)
-    tables = get_record_tables(conn)
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_path)
+        tables = get_record_tables(conn)
+        conn.close()
+    except Exception as e:
+        st.error(f"❌ Error conectando a la base de datos: {e}")
+        return
     
     if not tables:
         st.info("📊 No hay tablas disponibles")
