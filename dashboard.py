@@ -193,8 +193,15 @@ def main():
     # Unir rounds con el display usando el nombre normalizado
     display = display.merge(rounds_data[['name', 'rounds']], on='name', how='left')
     display['rounds'] = display['rounds'].fillna('N/A')
+    
+    # Agregar columna de posición numerada desde 1
+    display = display.reset_index(drop=True)
+    display.index = display.index + 1
+    display = display.rename_axis('#')
+    
     st.subheader("Participación por jugador (última tabla)")
     st.dataframe(display.rename(columns={
+        "#": "Posición",
         "name": "Jugador", 
         "damage": "Daño", 
         "pct": "% Participación",
@@ -203,6 +210,7 @@ def main():
     #st.bar_chart(agg_last.set_index("name")["pct"])
 
     # Gráfico de pastel para participación
+    st.markdown("---")
     st.markdown("### 🎯 Distribución del Daño")
     col1, col2 = st.columns(2)
     
@@ -233,7 +241,6 @@ def main():
         fig_bar.update_layout(height=400, showlegend=False)
         st.plotly_chart(fig_bar, use_container_width=True)
     
-    st.markdown("---")
 
     # Comparación / Tendencias
     st.markdown("---")
@@ -284,6 +291,7 @@ def main():
     top_down = comp[comp["change"] == "down"].nsmallest(10, "pct_change")
 
     # Gráficos mejorados con Plotly para tendencias
+    st.markdown("---")
     st.markdown("### 📈 Análisis de Tendencias")
     col1, col2 = st.columns(2)
     
@@ -338,6 +346,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
+    
     # # Gráfico de dispersión para comparación
     # st.markdown("### 🎯 Comparación Detallada")
     # if len(comp) > 0:
@@ -381,6 +390,7 @@ def main():
     #     st.plotly_chart(fig_scatter, use_container_width=True)
     
     # Sección de jugadores más activos (21/21 rounds)
+    st.markdown("---")
     st.markdown("### 🏆 Jugadores Más Activos (21/21 Rounds)")
     
     # Obtener datos de rounds de la tabla actual
