@@ -111,7 +111,6 @@ def main():
     
     # Título principal
     st.markdown('<h1 class="main-header">⚔️ Guild Raid Dashboard</h1>', unsafe_allow_html=True)
-    st.markdown("---")
 
     db_path = get_db_path()
     if not os.path.exists(db_path):
@@ -125,13 +124,58 @@ def main():
         conn.close()
         return
 
+    # Navegación por páginas - al inicio para controlar toda la vista
+    st.sidebar.markdown("### 📑 Navegación")
+    page = st.sidebar.radio("Seleccionar página", ["Dashboard Principal", "Vista Completa de Tabla"])
+    
+    # Página de Vista Completa de Tabla - reemplaza todo el dashboard
+    if page == "Vista Completa de Tabla":
+        st.markdown("---")
+        st.markdown("### 📊 Vista Completa de Tabla Seleccionada")
+        
+        # Selector para tabla individual
+        sel_table = st.selectbox("Seleccionar tabla para vista completa", tables, index=len(tables)-1)
+        
+        # Cargar datos de la tabla seleccionada
+        table_df = load_table(conn, sel_table)
+        if not table_df.empty:
+            # Obtener rounds de la tabla seleccionada
+            table_rounds = pd.read_sql_query(f'SELECT username, rounds FROM "{sel_table}"', conn)
+            table_rounds['rounds'] = table_rounds['rounds'].fillna('N/A')
+            table_rounds['name'] = table_rounds['username'].astype(str).str.upper()
+            
+            # Agrupar y ordenar datos
+            table_agg = aggregate(table_df).sort_values("damage", ascending=False).reset_index(drop=True)
+            
+            # Unir con rounds
+            table_display = table_agg.merge(table_rounds[['name', 'rounds']], on='name', how='left')
+            table_display['rounds'] = table_display['rounds'].fillna('N/A')
+            
+            # Agregar posición
+            table_display = table_display.reset_index(drop=True)
+            table_display.index = table_display.index + 1
+            table_display = table_display.rename_axis('#')
+            
+            st.dataframe(table_display.rename(columns={
+                "#": "Posición",
+                "name": "Jugador", 
+                "damage": "Daño", 
+                "rounds": "Rounds"
+            }), use_container_width=True, height=1090)
+        else:
+            st.warning(f"No hay datos disponibles en la tabla {sel_table}")
+        
+        conn.close()
+        return
+
+    st.markdown("---")
+
     # Sidebar: elegir tablas para comparar (por defecto las últimas dos)
     st.sidebar.header("Comparación / selección")
     default_last = tables[-1]
     default_prev = tables[-2] if len(tables) >= 2 else tables[-1]
     sel_last = st.sidebar.selectbox("Tabla última", tables, index=len(tables)-1)
     sel_prev = st.sidebar.selectbox("Tabla anterior", tables, index=max(0, len(tables)-2))
-    top_n = st.sidebar.number_input("Top N jugadores (0 = todos)", min_value=0, value=10, step=1)
 
     # Cargar datos
     last_df = load_table(conn, sel_last)
@@ -181,8 +225,8 @@ def main():
     
     st.markdown("---")
 
-    # Mostrar participación
-    display = agg_last.head(top_n) if top_n > 0 else agg_last
+    # Mostrar participación - todos los jugadores
+    display = agg_last.copy()
     display = display.copy()
     display["pct"] = display["pct"].map(lambda v: f"{v:.2f}%")
     # Obtener rounds de cada jugador
@@ -206,7 +250,7 @@ def main():
         "damage": "Daño", 
         "pct": "% Participación",
         "rounds": "Rounds"
-    }), use_container_width=True)
+    }), use_container_width=True, height="auto")
     #st.bar_chart(agg_last.set_index("name")["pct"])
 
     # Gráfico de pastel para participación
@@ -271,7 +315,7 @@ def main():
         "last_damage": "Last (daño)", 
         "pct_change": "% Cambio"
     })
-    comp_display_show = comp_display.head(top_n) if top_n > 0 else comp_display
+    comp_display_show = comp_display.copy()
     # Reordenar columnas para poner "Tipo" primero
     columns_order = ["Tipo", "Jugador", "Prev (daño)", "Last (daño)", "% Cambio"]
     st.dataframe(
